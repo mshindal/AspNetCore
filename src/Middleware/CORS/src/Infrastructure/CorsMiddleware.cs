@@ -5,6 +5,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Cors.Internal;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Endpoints;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -124,7 +125,40 @@ namespace Microsoft.AspNetCore.Cors.Infrastructure
 
         private async Task InvokeCore(HttpContext context, ICorsPolicyProvider corsPolicyProvider)
         {
-            var corsPolicy = _policy ?? await corsPolicyProvider.GetPolicyAsync(context, _corsPolicyName);
+            // CORS policy resolution rules:
+            //
+            // 1. If there is an endpoint with IDisableCorsAttribute then CORS is not run
+            // 2. If there is an endpoint with IEnableCorsAttribute that has a policy name then
+            //    fetch policy by name, prioritizing it above policy on middleware
+            // 3. If there is no policy on middleware then use name on middleware
+
+            var endpoint = context.GetEndpoint();
+
+            // Get the most significant CORS metadata for the endpoint
+            // For backwards compatibility reasons this is then downcast to Enable/Disable metadata
+            var corsMetadata = endpoint?.Metadata.GetMetadata<ICorsAttribute>();
+            if (corsMetadata is IDisableCorsAttribute)
+            {
+                await _next(context);
+                return;
+            }
+
+            var corsPolicy = _policy;
+            var policyName = _corsPolicyName;
+            if (corsMetadata is IEnableCorsAttribute enableCorsAttribute &&
+                enableCorsAttribute.PolicyName != null)
+            {
+                // If a policy name has been provided on the endpoint metadata then prioritizing it above the static middleware policy
+                policyName = enableCorsAttribute.PolicyName;
+                corsPolicy = null;
+            }
+
+            if (corsPolicy == null)
+            {
+                // Resolve policy by name if the local policy is not being used
+                corsPolicy = await corsPolicyProvider.GetPolicyAsync(context, policyName);
+            }
+
             if (corsPolicy == null)
             {
                 Logger?.NoCorsPolicyFound();
