@@ -22,9 +22,10 @@ namespace AuthSamples.DynamicSchemes
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
-            services.AddAuthentication()
+            services.AddAuthentication("oidc")
                 .AddScheme<SimpleOptions, SimpleAuthHandler>("fromStartup1", o => o.DisplayMessage = "I am from startup..")
                 .AddScheme<SimpleOptions, SimpleAuthHandler>("fromStartup2", o => o.DisplayMessage = "Me too!");
+            
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
