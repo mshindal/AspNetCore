@@ -14,15 +14,18 @@ namespace AuthSamples.DynamicSchemes.Controllers
         private readonly IAuthenticationSchemeProvider _schemeProvider;
         private readonly IOptionsMonitorCache<SimpleOptions> _optionsCache;
         private readonly IOptionsMonitorCache<OpenIdConnectOptions> _openIdConnectOptionsCache;
+        private readonly OpenIdConnectPostConfigureOptions _openIdConnectPostConfigureOptions;
 
         public AuthController(
             IAuthenticationSchemeProvider schemeProvider,
             IOptionsMonitorCache<SimpleOptions> optionsCache,
-            IOptionsMonitorCache<OpenIdConnectOptions> openIdConnectOptionsCache)
+            IOptionsMonitorCache<OpenIdConnectOptions> openIdConnectOptionsCache,
+            OpenIdConnectPostConfigureOptions openIdConnectPostConfigureOptions)
         {
             _schemeProvider = schemeProvider;
             _optionsCache = optionsCache;
             _openIdConnectOptionsCache = openIdConnectOptionsCache;
+            _openIdConnectPostConfigureOptions = openIdConnectPostConfigureOptions;
         }
 
         public IActionResult Remove(string scheme)
@@ -51,14 +54,15 @@ namespace AuthSamples.DynamicSchemes.Controllers
         public IActionResult AddOpenIdConnect()
         {
             _schemeProvider.AddScheme(new AuthenticationScheme("oidc", "OpenID Connect", typeof(OpenIdConnectHandler)));
-            _openIdConnectOptionsCache.TryAdd("oidc", new OpenIdConnectOptions()
+            var options = new OpenIdConnectOptions
             {
-                Authority = "https://XXX.com",
+                MetadataAddress = "https://XXX/.well-known/openid-configuration",
                 ClientId = "XXX",
                 ClientSecret = "XXX",
                 CallbackPath = "/signin-oidc",
-                // ConfigurationManager = new ConfigurationManager<OpenIdConnectConfiguration>("XXX", new OpenIdConnectConfigurationRetriever())
-            });
+            };
+            _openIdConnectPostConfigureOptions.PostConfigure("oidc", options);
+            _openIdConnectOptionsCache.TryAdd("oidc", options);
             return Redirect("/");
         }
     }

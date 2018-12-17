@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +23,9 @@ namespace AuthSamples.DynamicSchemes
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc();
+
+            services.AddSingleton<OpenIdConnectPostConfigureOptions>();
+
             services.AddAuthentication("oidc")
                 .AddScheme<SimpleOptions, SimpleAuthHandler>("fromStartup1", o => o.DisplayMessage = "I am from startup..")
                 .AddScheme<SimpleOptions, SimpleAuthHandler>("fromStartup2", o => o.DisplayMessage = "Me too!");
@@ -41,6 +45,10 @@ namespace AuthSamples.DynamicSchemes
             }
 
             app.UseStaticFiles();
+
+            // Uncommenting this causes an Access Violation crash
+            // when adding the OIDC authentication scheme
+            // app.UseAuthentication();
 
             app.UseMvc(routes =>
             {
